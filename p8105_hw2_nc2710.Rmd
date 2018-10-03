@@ -10,6 +10,7 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggridges)
+library(readxl)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -48,6 +49,8 @@ However, these data still are not "tidy" because they are in wide format where w
 * How many distinct stations are there?
 
 There are `r nrow(distinct(NYC_transit_data, line, station_name))` distinct stations. 
+
+**Yes, the question asks you to filter by name and line only. The example is just telling you that there is line that groups routes A/B/C/D, and another one with groups routes 1/2 for the same station.**
 
 * How many stations are ADA compliant?
 
@@ -110,24 +113,94 @@ filter(NYC_transit_data_long, route_name == "A") %>% # filter to examine only st
 
 This problem uses the Mr. Trash Wheel dataset. 
 
-Read and clean the Mr. Trash Wheel sheet:
+*Read and clean the Mr. Trash Wheel sheet*
+
+* specify the sheet in the Excel file and to omit columns containing notes (using the range argument)
+
+* use reasonable variable names
+
+* omit rows that do not include dumpster-specific data
+
+* rounds the number of sports balls to the nearest integer and converts the result to an integer variable (using as.integer)
 
 ```{r import Mr. Trash Wheel data}
-
 library(readxl)
-trash_data = read_excel("./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx") %>% 
-  janitor::clean_names()
+
+trash_data = read_excel("./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx",
+             range = "Mr. Trash Wheel!A2:N258", # specify sheet and omit column containing notes
+             col_types = c("text", "guess", "text", "guess", "guess", "guess", "guess", "guess", "guess", "guess","guess", "guess","guess", "guess")) %>% # specify column types
+  janitor::clean_names() %>% # cleans names
+  filter(!is.na(dumpster)) %>% # exclude rows that don't have dumpster-specific data
+  mutate(sports_balls = round(trash_data$sports_balls)) %>% # round no. sports balls to nearest integer
+  mutate(sports_balls = as.integer(sports_balls)) # convert sports_balls variable to an integer
+
+# why does this work when run individually but not when I try to run the chunk on its own? 
+
+# median number of sports balls in 2016
+sports_balls_2016 = filter(trash_data, year == "2016") # filter to examine only year 2016
+median(sports_balls_2016$sports_balls) # take the median number of sports balls collected 
+
+# weight of trash collected 2016 
+trash_data_2016 = filter(trash_data, year == "2016")
+sum(trash_data_2016$weight_tons)
+
+# weight of trash collected 2017 
+trash_data_2017 = filter(trash_data, year == "2017")
+sum(trash_data_2017$weight_tons)
+```
+
+Read and clean precipitation data for 2016 and 2017. For each, omit rows without precipitation data and add a variable year. Next, combine datasets and convert month to a character variable (the variable month.name is built into R and should be useful).
+
+```{r import precipitation data}
+library(readxl)
+
+precip_data_16 =
+  read_excel("./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx", # read in data
+             range = "2016 Precipitation!A2:B14") %>% # specify sheet and range
+  janitor::clean_names() %>% # clean names
+  filter(!is.na(total)) %>% # omit rows without precipitation data 
+  mutate(year = "2016") # add a variable for year 
+  # precip_data_16[1, 13] = "Total" should I rename this cell for total precipitation? 
+  
+precip_data_17 =
+  read_excel("./data/HealthyHarborWaterWheelTotals2017-9-26.xlsx",
+             range = "2017 Precipitation!A2:B14") %>% # specify sheet and range 
+  janitor::clean_names() %>% # clean names
+  filter(!is.na(total)) %>% # omit rows without precipitation data 
+  mutate(year = "2017") # add a variable for year
+
+# combine data sets
+precip_data_tidy = 
+  bind_rows(precip_data_16, precip_data_17) %>% # bind rows
+  mutate(month = month.name[month]) # convert month to character variable 
+
+# 2016 precipitation stats
+mean(precip_data_16$total) # mean precipitation
+sum(precip_data_16$total) # total precipitation
+
+# 2017 precipitation stats
+mean(precip_data_17$total) # mean precipitation
+sum(precip_data_17$total) # total precipitation
 
 ```
 
+*Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in both resulting datasets, and give examples of key variables. For available data, what was the total precipitation in 2017? What was the median number of sports balls in a dumpster in 2016?*
 
-specify the sheet in the Excel file and to omit columns containing notes (using the range argument and cell_cols() function)
-use reasonable variable names
-omit rows that do not include dumpster-specific data
-rounds the number of sports balls to the nearest integer and converts the result to an integer variable (using  as.integer)
-Read and clean precipitation data for 2016 and 2017. For each, omit rows without precipitation data and add a variable year. Next, combine datasets and convert month to a character variable (the variable month.name is built into R and should be useful).
+The Mr. Trash Weel dataset contains data collected about a water wheel (named "Mr. Trash Wheel") that removes trash from the Inner Harbor in Baltimore, Maryland. The data contains information about 215 specific dumpsters, the date of collection, the amount of total trash (including the weight in tons and volume in cubic yards) collected, and the type of trash collected (e.g. cigarette butts, plastic bottles, chip bags, and grocery bags). Thus, we can gather a lot of information about the types of trash moving into the harbor at specific years and times of year. For example, the median number of sports balls collected in a dumpster in 2016 was `r median(sports_balls_2016$sports_balls)`. Furthermore, this trash is then incinerated to provide energy for homes and the data contains information on the number of homes powered by the collected trash. The dataset is `r nrow(trash_data)` rows by `r ncol(trash_data)` columns. 
 
-Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in both resulting datasets, and give examples of key variables. For available data, what was the total precipitation in 2017? What was the median number of sports balls in a dumpster in 2016?
+Because the amount of trash Mr. Trash Wheel receives is highly dependent on rainfall (i.e. large storms move a lot of trash from the street into the harbor), we also examined precipitation data for 2016 and 2017. These two data sets for 2016 and 2017 contain the total rainfall for a given month of that year as well as the total rainfall for the year. The 2016 precipitation dataset is `r nrow(precip_data_16)` rows by `r ncol(precip_data_16)` columns (month, total precipitation, year) whereas the 2017 precipitation dataset is only `r nrow(precip_data_17)` rows by `r ncol(precip_data_17)` columns because there was no precipitation for the months September through December, inclusive. Combining these datasets creates a dataset `r nrow(precip_data_tidy)` rows by `r ncol(precip_data_tidy)` columns. In 2016, the total precipitation was `r sum(precip_data_16$total)` inches and the mean precipitation was `r mean(precip_data_16$total)`. In 2017, the total precipitation was `r sum(precip_data_17$total)` and the mean precipitation was `r mean(precip_data_17$total)`.
+
+Accordingly, more trash was collected in 2016 than 2017. In 2016, there were `r sum(trash_data_2016$weight_tons)` tons of trash collected whereas in 2017 there were `r sum(trash_data_2017$weight_tons)` tons of trash collected. 
+
+## Problem 3 
+
+NOTE: 
+
+"create a new variable showing the proportion of responses that were “Excellent” or “Very Good” "
+
+Does this mean to count the number of rows of the data set that correspond to Excellent or Very? If so, why is it necessary to create a new variable to show that?
+
+We're not asking you to count the rows -- we're asking what proportion of respondents in a location said their health was "excellent" or "very good". 
 
 
 
