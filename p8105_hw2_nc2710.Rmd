@@ -6,6 +6,7 @@ output: github_document
 ---
 
 ```{r setup, include=FALSE}
+
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggridges)
@@ -15,6 +16,7 @@ knitr::opts_chunk$set(
   fig.asp = .6,
   out.width = "90%"
 )
+
 ```
 
 ## Problem 1
@@ -26,6 +28,7 @@ This problem focuses on NYC transit data; in particular, information related to 
 *Write a short paragraph about this dataset – explain briefly what variables the dataset contains, describe your data cleaning steps so far, and give the dimension (rows x columns) of the resulting dataset. Are these data tidy?*
 
 ```{r import data}
+
 NYC_transit_data = read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv") %>%
   janitor::clean_names() %>% # clean column names
   select(line:entry, vending, ada) %>% # retain only specified information
@@ -33,9 +36,10 @@ NYC_transit_data = read_csv(file = "./data/NYC_Transit_Subway_Entrance_And_Exit_
                        "YES" = TRUE,
                        "NO" = FALSE)) %>% # convert entry from character to logical variable
   select(-entry) # remove old entry character variable
+
 ```
 
-The code above imports data regarding NYC Transit information related to each entrance and exit for each subway station in NYC. After importing the file using a relative path, I cleaned the names and selected the following variables to retain in the dataset: line, station name, station's latitude / longitude, routes served, entry, vending (YES/NO for whether it is present), entrance type (Elevator, stair, easement, etc...), and ADA compliance (YES/NO). I then created a new variable using the recode funtion, named "entry_logical". This step converted the "entry" variable from a character (YES/NO) to a logical variable (TRUE/FALSE). I next removed the "entry" character variable from the dataset. This data cleaning process results in a dataframe composed of `r nrow(NYC_transit_data)` rows and `r ncol(NYC_transit_data)` columns. 
+The code above imports data regarding NYC Transit information related to each entrance and exit for each subway station in NYC. After importing the file using a relative path, I cleaned the names and selected the following variables to retain in the dataset: line, station name, station's latitude / longitude, routes served, entry (whether entry is allowed), vending (YES/NO for whether it is present), entrance type (Elevator, stair, easement, etc...), and ADA compliance (YES/NO). I then created a new variable using the recode funtion, named "entry_logical". This step converted the "entry" variable from a character (YES/NO) to a logical variable (TRUE/FALSE). I next removed the "entry" character variable from the dataset. This data cleaning process results in a dataframe composed of `r nrow(NYC_transit_data)` rows and `r ncol(NYC_transit_data)` columns. 
 
 However, these data still are not "tidy" because they are in wide format where we have multiple variables for the routes from route1:route11 (and thus a lot of missing data); In reality, "route" itself should be a variable and the route number (1-11) assigned as a value. This would convert our data from wide to long format. 
 
@@ -43,20 +47,66 @@ However, these data still are not "tidy" because they are in wide format where w
 
 * How many distinct stations are there?
 
-* Note that stations are identified both by name and by line (e.g. 125th St A/B/C/D; 125st 1; 125st 4/5); the distinct function may be useful here.
+There are `r nrow(distinct(NYC_transit_data, line, station_name))` distinct stations. 
 
 * How many stations are ADA compliant?
 
+Of those distinct stations, `r mean(NYC_transit_data$ada)` are ADA compliant. 
+
 * What proportion of station entrances / exits without vending allow entrance?
 
-* Reformat data so that route number and route name are distinct variables. How many distinct stations serve the A train? Of the stations that serve the A train, how many are ADA compliant?
+**Entrance/exit the same??**
 
+The proportion of station entrances / exits without vending that allow entrance is 0.3770492.
 
+```{r answer questions}
 
-```{r}
+# how many distinct stations are there: 
+nrow(distinct(NYC_transit_data, line, station_name))
+
+# how many of those distinct stations are ADA compliant: 
+mean(NYC_transit_data$ada)
+
+# proportion of station entrances / exits without vending that allow entrance:
+no_vending = filter(NYC_transit_data, vending == "NO") # filter to examine only entrances/exits without vending
+mean(no_vending$entry_logical) # take the proportion of those that do allow entrance (entry_logical = TRUE)
 
 ```
 
+*Reformat data so that route number and route name are distinct variables.* 
+
+**Does this look right?**
+
+```{r}
+
+NYC_transit_data_long =
+  gather(NYC_transit_data, key = route_number, value = route_name, route1:route11) # reformat using gather function 
+
+```
+
+*How many distinct stations serve the A train? Of the stations that serve the A train, how many are ADA compliant?*
+
+60 distinct stations serve the A train. **I don't think that's right... it says some like 168 that I know serve more than A. Do I have to do ifelse?** Of the stations that serve the A train, 17 are ADA compliant. 
+
+```{r}
+
+# how many distinct stations serve the A train: 
+A_line =
+  filter(NYC_transit_data_long, route_name == "A") %>% # filter to examine only stations serving A
+  distinct(., line, station_name, .keep_all = TRUE) # how many distinct stations (line and station) serve A
+
+nrow(A_line) # gives the number of distinct stations that serve the A line
+
+# how many of these are ADA compliant:
+filter(NYC_transit_data_long, route_name == "A") %>% # filter to examine only stations serving A
+  distinct(., line, station_name, .keep_all = TRUE) %>% # how many distinct stations (line and station) serve A
+  filter(., ada == TRUE) %>% # now see how many of these are ADA compliant 
+  nrow() # number of rows gives the number ADA compliant
+
+```
+
+
+## Problem 2 
 
 
 
