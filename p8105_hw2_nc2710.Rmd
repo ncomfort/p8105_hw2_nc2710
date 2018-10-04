@@ -290,7 +290,7 @@ brfss_NY = filter(brfss_smart2010,
 ggplot(brfss_NY, aes(x = year, y = prop_excellent)) + 
   geom_point(aes(color = County)) + 
   labs(
-    title = "Scatterplot of 'Excellent' Overall Health Respondents in New York County and Queens County, NY",
+    title = "'Excellent' Overall Health Respondents in NY Counties",
     x = "Year",
     y = "Proportion of Respondents to Respond 'Excellent'",
     caption = "Data from the Behavioral Risk Factors Surveillance System for Selected Metropolitan Area Risk Trends (SMART), 2002-2010, accessed from data.gov in Sept 2018"
