@@ -9,15 +9,18 @@ output: github_document
 
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(ggplot2)
 library(ggridges)
 library(readxl)
+library(dplyr)
+library(janitor)
 
 # set options for figures 
-knitr::opts_chunk$set(
-  fig.width = 6,
-  fig.asp = .6,
-  out.width = "90%"
-)
+# knitr::opts_chunk$set(
+#   fig.width = 6,
+#   fig.asp = .6,
+#   out.width = "90%"
+# )
 
 theme_set(theme_bw() + theme(legend.position = "bottom"))
 
@@ -47,31 +50,15 @@ The code above imports data regarding NYC Transit information related to each en
 
 However, these data still are not "tidy" because they are in wide format where we have multiple variables for the routes from route1:route11 (and thus a lot of missing data); In reality, "route" itself should be a variable and the route number (1-11) assigned as a value. This would convert our data from wide to long format. 
 
-*Answer the following questions using these data*:
-
-* How many distinct stations are there?
-
-There are `r nrow(distinct(NYC_transit_data, line, station_name))` distinct stations. 
-
-**Yes, the question asks you to filter by name and line only. The example is just telling you that there is line that groups routes A/B/C/D, and another one with groups routes 1/2 for the same station.**
-
-* How many stations are ADA compliant?
-
-Of those distinct stations, `r mean(NYC_transit_data$ada)` are ADA compliant. 
-
-* What proportion of station entrances / exits without vending allow entrance?
-
-**Entrance/exit the same??**
-
-The proportion of station entrances / exits without vending that allow entrance is 0.3770492.
-
 ```{r answer questions}
 
 # how many distinct stations are there: 
 nrow(distinct(NYC_transit_data, line, station_name))
 
 # how many of those distinct stations are ADA compliant: 
-mean(NYC_transit_data$ada)
+ada_compl_stns = filter(NYC_transit_data, ada == "TRUE") %>% 
+  distinct(line, station_name)
+nrow(ada_compl_stns)
 
 # proportion of station entrances / exits without vending that allow entrance:
 no_vending = filter(NYC_transit_data, vending == "NO") # filter to examine only entrances/exits without vending
@@ -79,9 +66,21 @@ mean(no_vending$entry_logical) # take the proportion of those that do allow entr
 
 ```
 
-*Reformat data so that route number and route name are distinct variables.* 
+*Answer the following questions using these data*:
 
-**Does this look right?**
+* How many distinct stations are there?
+
+There are `r nrow(distinct(NYC_transit_data, line, station_name))` distinct stations. 
+
+* How many stations are ADA compliant?
+
+Of those distinct stations, `r nrow(ada_compl_stns)` are ADA compliant. 
+
+* What proportion of station entrances / exits without vending allow entrance?
+
+The proportion of station entrances / exits without vending that allow entrance is 0.3770492.
+
+*Reformat data so that route number and route name are distinct variables.* 
 
 ```{r}
 
@@ -92,7 +91,7 @@ NYC_transit_data_long =
 
 *How many distinct stations serve the A train? Of the stations that serve the A train, how many are ADA compliant?*
 
-60 distinct stations serve the A train. **I don't think that's right... it says some like 168 that I know serve more than A. Do I have to do ifelse?** Of the stations that serve the A train, 17 are ADA compliant. 
+60 distinct stations serve the A train. Of the stations that serve the A train, 17 are ADA compliant. 
 
 ```{r}
 
@@ -111,7 +110,6 @@ filter(NYC_transit_data_long, route_name == "A") %>% # filter to examine only st
 
 ```
 
-
 ## Problem 2 
 
 This problem uses the Mr. Trash Wheel dataset. 
@@ -127,22 +125,22 @@ This problem uses the Mr. Trash Wheel dataset.
 * rounds the number of sports balls to the nearest integer and converts the result to an integer variable (using as.integer)
 
 ```{r import Mr. Trash Wheel data}
+
 library(readxl)
+library(janitor)
 
 # read in Mr. Trash Wheel data using updated dataset 10/04/18
 trash_data = read_excel("./data/HealthyHarborWaterWheelTotals2018-7-28.xlsx",
              range = "Mr. Trash Wheel!A2:N338", # specify sheet and omit column containing notes
-             col_types = c("text", "guess", "text", "guess", "guess", "guess", "guess", "guess", "guess", "guess","guess", "guess","guess", "guess")) %>% # specify column types
-  janitor::clean_names() %>% # cleans names
+             col_types = c("text", "guess", "text", "guess", "guess", "guess", "guess", "guess", "guess", "guess","guess", "guess","guess", "guess")) %>%  # specify column types
+  clean_names() %>% # cleans names
   filter(!is.na(dumpster)) %>% # exclude rows that don't have dumpster-specific data
-  mutate(sports_balls = round(trash_data$sports_balls)) %>% # round no. sports balls to nearest integer
+  mutate(sports_balls = round(sports_balls)) %>% # round no. sports balls to nearest integer
   mutate(sports_balls = as.integer(sports_balls)) # convert sports_balls variable to an integer
-
-# why does this work when run individually but not when I try to run the chunk on its own? 
 
 # median number of sports balls in 2016
 sports_balls_2016 = filter(trash_data, year == "2016") # filter to examine only year 2016
-med_sp_bls = median(sports_balls_2016$sports_balls, na.rm = TRUE) # take the median number of sports balls collected 
+median(sports_balls_2016$sports_balls, na.rm = TRUE) # take the median number of sports balls collected 
 
 # weight of trash collected 2016 
 trash_data_2016 = filter(trash_data, year == "2016")
@@ -153,10 +151,9 @@ trash_data_2017 = filter(trash_data, year == "2017")
 sum(trash_data_2017$weight_tons)
 ```
 
-Read and clean precipitation data for 2016 and 2017. For each, omit rows without precipitation data and add a variable year. Next, combine datasets and convert month to a character variable (the variable month.name is built into R and should be useful).
+*Read and clean precipitation data for 2016 and 2017. For each, omit rows without precipitation data and add a variable year. Next, combine datasets and convert month to a character variable (the variable month.name is built into R and should be useful).*
 
 ```{r import precipitation data}
-library(readxl)
 
 precip_data_16 =
   read_excel("./data/HealthyHarborWaterWheelTotals2018-7-28.xlsx", # read in data
@@ -178,22 +175,22 @@ precip_data_tidy =
   mutate(month = month.name[month]) # convert month to character variable 
 
 # 2016 precipitation stats
-mean_prcp_16 = mean(precip_data_16$total, na.rm = TRUE) # mean precipitation
+mean(precip_data_16$total, na.rm = TRUE) # mean precipitation
 sum(precip_data_16$total) # total precipitation
 
 # 2017 precipitation stats
-mean_prcp_17 = mean(precip_data_17$total, na.rm = TRUE) # mean precipitation
+mean(precip_data_17$total, na.rm = TRUE) # mean precipitation
 sum(precip_data_17$total) # total precipitation
 
 ```
 
 *Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in both resulting datasets, and give examples of key variables. For available data, what was the total precipitation in 2017? What was the median number of sports balls in a dumpster in 2016?*
 
-The Mr. Trash Weel dataset contains data collected about a water wheel (named "Mr. Trash Wheel") that removes trash from the Inner Harbor in Baltimore, Maryland. The data contains information about 215 specific dumpsters, the date of collection, the amount of total trash (including the weight in tons and volume in cubic yards) collected, and the type of trash collected (e.g. cigarette butts, plastic bottles, chip bags, and grocery bags). Thus, we can gather a lot of information about the types of trash moving into the harbor at specific years and times of year. For example, the median number of sports balls collected in a dumpster in 2016 was `r print(med_sp_bls)`. Furthermore, this trash is then incinerated to provide energy for homes and the data contains information on the number of homes powered by the collected trash. The dataset is `r nrow(trash_data)` rows by `r ncol(trash_data)` columns. 
+The Mr. Trash Weel dataset contains data collected about a water wheel (named "Mr. Trash Wheel") that removes trash from the Inner Harbor in Baltimore, Maryland. The data contains information about 285 specific dumpsters, the date of collection, the amount of total trash (including the weight in tons and volume in cubic yards) collected, and the type of trash collected (e.g. cigarette butts, plastic bottles, chip bags, and grocery bags). Thus, we can gather a lot of information about the types of trash moving into the harbor at specific years and times of year. For example, the median number of sports balls collected in a dumpster in 2016 was `r median(sports_balls_2016$sports_balls, na.rm = TRUE)`. Furthermore, this trash is then incinerated to provide energy for homes and the data contains information on the number of homes powered by the collected trash. The dataset is `r nrow(trash_data)` rows by `r ncol(trash_data)` columns. 
 
-Because the amount of trash Mr. Trash Wheel receives is highly dependent on rainfall (i.e. large storms move a lot of trash from the street into the harbor), we also examined precipitation data for 2016 and 2017. These two data sets for 2016 and 2017 contain the total rainfall for a given month of that year as well as the total rainfall for the year. The 2016 precipitation dataset is `r nrow(precip_data_16)` rows by `r ncol(precip_data_16)` columns (key variables: month, total precipitation, year) whereas the 2017 precipitation dataset is only `r nrow(precip_data_17)` rows by `r ncol(precip_data_17)` columns because there was no precipitation for the months September through December, inclusive. Combining these datasets creates a dataset `r nrow(precip_data_tidy)` rows by `r ncol(precip_data_tidy)` columns. In 2016, the total precipitation was `r sum(precip_data_16$total)` inches and the mean precipitation was `r print(mean_prcp_16)`. In 2017, the total precipitation was `r sum(precip_data_17$total)` and the mean precipitation was `r print(mean_prcp_17)`.
+Because the amount of trash Mr. Trash Wheel receives is highly dependent on rainfall (i.e. large storms move a lot of trash from the street into the harbor), we also examined precipitation data for 2016 and 2017. These two data sets for 2016 and 2017 contain the total rainfall for a given month of that year as well as the total rainfall for the year. The 2016 precipitation dataset is `r nrow(precip_data_16)` rows by `r ncol(precip_data_16)` columns (key variables: month, total precipitation, year) and the 2017 precipitation dataset is also `r nrow(precip_data_17)` rows by `r ncol(precip_data_17)` columns. Combining these datasets thus yields a dataset `r nrow(precip_data_tidy)` rows by `r ncol(precip_data_tidy)` columns. In 2016, the total precipitation was `r sum(precip_data_16$total)` inches and the mean precipitation was `r mean(precip_data_16$total, na.rm = TRUE)` inches. In 2017, the total precipitation was `r sum(precip_data_17$total)` inches and the mean precipitation was `r mean(precip_data_17$total, na.rm = TRUE)` inches.
 
-Accordingly, more trash was collected in 2016 than 2017. In 2016, there were `r sum(trash_data_2016$weight_tons)` tons of trash collected whereas in 2017 there were `r sum(trash_data_2017$weight_tons)` tons of trash collected. 
+Yet interestingly, more trash was collected in 2017 than 2016. In 2016, there were `r sum(trash_data_2016$weight_tons)` tons of trash collected whereas in 2017 there were `r sum(trash_data_2017$weight_tons)` tons of trash collected. 
 
 ## Problem 3 
 
@@ -204,11 +201,10 @@ The dataset initially contains 134,203 rows and 23 columns. There is information
 ```{r download dataset}
 
 # install.packages("devtools")
-devtools::install_github("p8105/p8105.datasets")
+devtools::install_github("p8105/p8105.datasets", force = TRUE)
 
 library("p8105.datasets", lib.loc="/Library/Frameworks/R.framework/Versions/3.5/Resources/library")
 data("brfss_smart2010")
-View(brfss_smart2010)
 
 ```
 
@@ -252,7 +248,7 @@ There are `r nrow(distinct(brfss_smart2010, locationdesc))` unique locations inc
 
 There are `r nrow(distinct(brfss_smart2010, locationabbr))` states represented, so yes, all states are represented as well as Washington, D.C. 
 
-The state with the most observations in the dataset is `r print(most_observed_state)`. 
+The state with the most observations in the dataset is New Jersey (NJ).  
 
 ```{r median}
 
@@ -275,7 +271,7 @@ ggplot(brfss_2002, aes(x = excellent)) +
     title = "Histogram of 'Excellent' Responses to Overall Health topic in 2002",
     x = "Proportion of Respondents to Respond 'Excellent'",
     y = "Count",
-    caption = "Data from the Behavioral Risk Factors Surveillance System for Selected Metropolitan Area Risk Trends (SMART), 2002, accessed from data.gov in Sept 2018"
+    caption = "Data from the Behavioral Risk Factors Surveillance System for Selected Metropolitan Area Risk Trends (SMART), 2002"
   )
 
 ```
@@ -288,7 +284,7 @@ ggplot(brfss_2002, aes(x = excellent)) +
 brfss_NY = filter(brfss_smart2010,
                   locationdesc == "NY - New York County" | locationdesc == "NY - Queens County") %>% 
            mutate(prop_excellent = (excellent)/(excellent + very_good + good + fair + poor)) %>% 
-rename(County = locationdesc) 
+           dplyr::rename(County = locationdesc)
 
 # make scatterplot
 ggplot(brfss_NY, aes(x = year, y = prop_excellent)) + 
